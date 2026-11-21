@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>《無時空之戀》</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================================================
+           全域樣式與舞台視覺設定
+           ============================================================================ */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            background: radial-gradient(circle at center, #24143e 0%, #0d071a 100%);
+            color: #ffffff;
+            font-family: 'Noto Sans TC', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow: hidden;
+            padding: env(safe-area-inset-top, 8px) env(safe-area-inset-right, 8px) env(safe-area-inset-bottom, 8px) env(safe-area-inset-left, 8px);
+        }
+
+        /* 遊戲主視窗容器 (電腦與手機橫向維持 16:9 寬螢幕比例) */
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 960px;
+            aspect-ratio: 16 / 9;
+            max-height: 88dvh;
+            background-color: #160e29;
+            border: 3px solid #f6c945;
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(246, 201, 69, 0.25), 0 15px 35px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        /* ============================================================================
+           手機直向 (Portrait) 與橫向 (Landscape) 專屬響應式適配 (統一維持 16:9 寬螢幕比例)
+           ============================================================================ */
+        @media (orientation: portrait) {
+            body {
+                padding: 8px;
+                justify-content: center;
+            }
+            #game-container {
+                width: 100%;
+                aspect-ratio: 16 / 9;
+                height: auto;
+                max-height: 85dvh;
+                border-radius: 14px;
+            }
+            #hud {
+                padding: 6px 10px;
+                gap: 6px;
+            }
+            .hud-left, .hud-right {
+                gap: 6px;
+            }
+            .hud-badge {
+                padding: 3px 8px;
+                font-size: 11px;
+            }
+            .timer-card {
+                padding: 3px 8px;
+                border-radius: 10px;
+            }
+            .timer-row {
+                font-size: 11px;
+            }
+            #sprint-label {
+                font-size: 10px;
+            }
+            #mute-btn {
+                padding: 3px 8px;
+                font-size: 11px;
+            }
+            .intro-card {
+                padding: 10px 12px;
+            }
+            .game-title {
+                font-size: 18px;
+                margin-bottom: 6px;
+            }
+            .story-box {
+                font-size: 11px;
+                line-height: 1.4;
+                padding: 6px 8px;
+                margin-bottom: 8px;
+            }
+            .action-btn {
+                padding: 6px 22px;
+                font-size: 14px;
+            }
+            #bottom-tip {
+                font-size: 12px;
+                padding: 0 8px;
+            }
+        }
+
+        @media (orientation: landscape) and (max-height: 520px) {
+            body {
+                padding: 4px;
+            }
+            #game-container {
+                width: auto;
+                height: 94dvh;
+                max-height: 94dvh;
+                max-width: 96vw;
+                aspect-ratio: 16 / 9;
+                border-radius: 12px;
+                border-width: 2px;
+            }
+            #hud {
+                padding: 6px 14px;
+            }
+            .hud-badge, #mute-btn {
+                padding: 4px 10px;
+                font-size: 12px;
+            }
+            .timer-card {
+                padding: 4px 10px;
+            }
+            .timer-row {
+                font-size: 12px;
+            }
+            .intro-card {
+                padding: 10px 16px;
+                max-width: 82%;
+                max-height: 92%;
+            }
+            .game-title {
+                font-size: 20px;
+                margin-bottom: 6px;
+            }
+            .story-box {
+                font-size: 12px;
+                line-height: 1.42;
+                padding: 8px 10px;
+                margin-bottom: 10px;
+            }
+            .action-btn {
+                padding: 7px 26px;
+                font-size: 15px;
+            }
+            #bottom-tip {
+                display: none;
+            }
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        /* ============================================================================
+           頂部狀態列 (HUD)
+           ============================================================================ */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 12px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            background: linear-gradient(to bottom, rgba(13, 7, 26, 0.85) 0%, rgba(13, 7, 26, 0) 100%);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .hud-right {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .hud-badge {
+            background: rgba(25, 16, 48, 0.92);
+            border: 1.5px solid rgba(246, 201, 69, 0.75);
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: clamp(13px, 1.7vw, 17px);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+        }
+
+        /* 右上角整合式計時器卡片（「🔥 衝刺加速中！」直接顯示在剩餘時間上方，無額外提示條） */
+        .timer-card {
+            background: rgba(25, 16, 48, 0.92);
+            border: 1.5px solid rgba(246, 201, 69, 0.75);
+            border-radius: 14px;
+            padding: 6px 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+            transition: border-color 0.25s, box-shadow 0.25s;
+        }
+
+        .timer-card.sprinting {
+            border-color: #ff9100;
+            box-shadow: 0 0 16px rgba(255, 145, 0, 0.65);
+        }
+
+        #sprint-label {
+            font-size: clamp(11px, 1.4vw, 13.5px);
+            font-weight: 900;
+            color: #ff9100;
+            letter-spacing: 0.5px;
+            line-height: 1.2;
+            margin-bottom: 2px;
+            text-shadow: 0 0 8px rgba(255, 145, 0, 0.8);
+            animation: pulseSprint 0.55s infinite alternate;
+        }
+
+        .timer-row {
+            font-size: clamp(13px, 1.7vw, 17px);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            line-height: 1.2;
+        }
+
+        @keyframes pulseSprint {
+            from { opacity: 0.82; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1.04); }
+        }
+
+        .gold-text {
+            color: #ffd54f;
+        }
+
+        /* 右上角音效切換鈕 */
+        #mute-btn {
+            pointer-events: auto;
+            background: rgba(25, 16, 48, 0.92);
+            border: 1.5px solid #ffd54f;
+            color: #ffd54f;
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-family: 'Noto Sans TC', sans-serif;
+            font-size: clamp(13px, 1.6vw, 16px);
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s, background 0.2s;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+        }
+
+        #mute-btn:hover {
+            background: rgba(255, 213, 79, 0.2);
+        }
+
+        #mute-btn:active {
+            transform: scale(0.94);
+        }
+
+        /* ============================================================================
+           彈出覆蓋畫面 (開始前說明 / 全螢幕純圖片結局畫面)
+           ============================================================================ */
+        .modal-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(12, 6, 24, 0.86);
+            backdrop-filter: blur(6px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 18px;
+            z-index: 30;
+            pointer-events: auto;
+            overflow-y: auto;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .intro-card {
+            background: linear-gradient(145deg, rgba(42, 24, 78, 0.96), rgba(22, 12, 44, 0.98));
+            border: 2px solid #f6c945;
+            border-radius: 18px;
+            padding: clamp(14px, 2.4vw, 24px);
+            max-width: 680px;
+            width: 100%;
+            max-height: 94%;
+            overflow-y: auto;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.75);
+            text-align: center;
+            position: relative;
+            z-index: 35;
+        }
+
+        .game-title {
+            font-size: clamp(22px, 3.6vw, 34px);
+            font-weight: 900;
+            background: linear-gradient(90deg, #fff176, #ffd54f, #ff80ab);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        .story-box {
+            text-align: left;
+            background: rgba(0, 0, 0, 0.38);
+            border-left: 4px solid #ff80ab;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: clamp(12.5px, 1.65vw, 15.5px);
+            line-height: 1.58;
+            color: #f3e5f5;
+            margin-bottom: 14px;
+            white-space: pre-line;
+        }
+
+        .action-btn {
+            position: relative;
+            z-index: 40;
+            pointer-events: auto;
+            background: linear-gradient(135deg, #f6c945 0%, #ff8f00 100%);
+            color: #1a0d2e;
+            border: 2px solid #fff8e1;
+            border-radius: 999px;
+            padding: 10px 36px;
+            font-family: 'Noto Sans TC', sans-serif;
+            font-size: clamp(16px, 2.1vw, 20px);
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: 0 5px 20px rgba(246, 201, 69, 0.55);
+            transition: transform 0.15s, filter 0.15s;
+        }
+
+        .action-btn:hover {
+            filter: brightness(1.08);
+            transform: translateY(-2px);
+        }
+
+        .action-btn:active {
+            transform: translateY(1px);
+        }
+
+        /* ============================================================================
+           全螢幕純圖片結局遮罩 (不加任何額外文字，直接展示圖片 + 再玩一次按鈕)
+           ============================================================================ */
+        #ending-modal {
+            padding: 0;
+            background: #0d071a;
+            overflow: hidden;
+        }
+
+        #ending-fullscreen-bg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0d071a;
+        }
+
+        #ending-fullscreen-bg img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        #restart-btn {
+            position: absolute;
+            bottom: clamp(14px, 3.5vh, 28px);
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 45;
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.85), 0 0 18px rgba(246, 201, 69, 0.7);
+        }
+
+        #restart-btn:hover {
+            transform: translateX(-50%) translateY(-2px);
+        }
+
+        #restart-btn:active {
+            transform: translateX(-50%) translateY(1px);
+        }
+
+        /* 底部操作提示條 */
+        #bottom-tip {
+            margin-top: 8px;
+            font-size: clamp(12px, 1.6vw, 14px);
+            color: #ce93d8;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 遊戲主視窗 -->
+    <div id="game-container">
+        <!-- 頂部狀態列 -->
+        <div id="hud">
+            <div class="hud-left">
+                <div class="hud-badge">
+                    <span id="hud-lives">❤️❤️❤️</span>
+                </div>
+                <div class="hud-badge gold-text">
+                    <span>🎀 綬帶結：</span>
+                    <span id="hud-coins">0 / 30</span>
+                </div>
+            </div>
+
+            <div class="hud-right">
+                <!-- 右上角整合式計時器卡片：「🔥 衝刺加速中！」直接顯示在剩餘時間上方 -->
+                <div id="timer-card" class="timer-card">
+                    <div id="sprint-label" class="hidden">🔥 衝刺加速中！</div>
+                    <div class="timer-row">
+                        <span>⏳ 剩餘時間：</span>
+                        <span id="hud-time" class="gold-text">01:11</span>
+                    </div>
+                </div>
+                <button id="mute-btn" type="button">🔊 開聲音</button>
+            </div>
+        </div>
+
+        <!-- 遊戲畫布 -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- 1. 遊戲開始前劇情與玩法介紹視窗 -->
+        <div id="intro-modal" class="modal-overlay">
+            <div class="intro-card">
+                <h1 class="game-title">《無時空之戀》</h1>
+                <div class="story-box">🎶叱咤903頒獎典禮就快開始啦！但「人質王」又唔知被人綁左去邊度？快啲幫古生收集綬帶結增強緣分，一齊突破重圍，搵返佢個女主角去攞獎啦！🏆
+
+🎮遊戲玩法：
+- 收集20個或以上綬帶結即算通關
+- 記得要避開晒D傳送陣，千祈唔好又返去嗰個虐心分開嘅前世呀！
+- 仲有隱藏結局等緊大家去解鎖，睇吓你搵唔搵到觸發方法！
+
+🔊貼心提醒：記得開聲玩，聽住音樂體驗感 Level Up！</div>
+                <button id="start-btn" type="button" class="action-btn">開始遊戲 ▶</button>
+            </div>
+        </div>
+
+        <!-- 2. 全螢幕純圖片結局視窗 (無額外文字，直接展示結局圖片 + 再玩一次按鈕) -->
+        <div id="ending-modal" class="modal-overlay hidden">
+            <div id="ending-fullscreen-bg"></div>
+            <button id="restart-btn" type="button" class="action-btn">再玩一次 ↻</button>
+        </div>
+    </div>
+
+    <div id="bottom-tip">
+        💡 操作方式：手機直接<strong>輕觸屏幕任意位置</strong>，電腦按 <strong>空白鍵</strong>、<strong>⬆️</strong> 或 <strong>點擊畫面</strong> 跳躍（支援空中<strong>二段跳</strong>）！
+    </div>
+
+    <!-- 背景音樂播放器 (preload="auto" 頁面開啟即預載，確保零延遲播放) -->
+    <audio id="bgm-player" preload="auto"></audio>
+
+    <script>
+        /**
+         * ============================================================================
+         * 【自訂素材設定區】請在下方雙引號 "" 內替換為您的 Imgur 圖片網址與音樂網址！
+         * ============================================================================
+         * 1. Imgur 網址請使用直接連結（以 https://i.imgur.com/ 開頭，結尾為 .png 或 .jpg）。
+         * 2. 背景音樂網址請使用可直接播放的音訊連結（長度 1分11秒 / 71秒）。
+         * 3. 若某網址留空或載入失敗，系統會自動啟用內建精緻繪圖與浪漫鋼琴八音盒旋律，隨時可直接遊玩。
+         */
+        const ASSETS = {
+            // 1. 背景音樂網址 (時長 1分11秒 / 71秒)
+            bgmUrl: "https://files.catbox.moe/ypmd47.mp3",
+
+            // 2. 遊戲循環捲軸背景圖
+            bgImage: "https://raw.githubusercontent.com/natnatdailydiary/Beyond-Time-and-Space/main/Game/Background.PNG",
+
+            // 3. 玩家（古生）的 3 個動作圖片 (放大 2 倍至 156x210 px，三張尺寸完全一致並貼齊地面)
+            playerRun1: "https://raw.githubusercontent.com/natnatdailydiary/Beyond-Time-and-Space/main/Game/boy_run1.png",   // 古生跑步動作 1
+            playerRun2: "https://raw.githubusercontent.com/natnatdailydiary/Beyond-Time-and-Space/main/Game/boy_run2.png",   // 古生跑步動作 2
+            playerJump: "https://raw.githubusercontent.com/natnatdailydiary/Beyond-Time-and-Space/main/Game/boy_jump.png",   // 古生跳躍動作
+
+            // 4. 收集品「綬帶結」金幣圖片 (放大 2 倍至 164x164 px，共 30 個平均分佈且絕不與傳送陣重疊)
+            ribbon: "https://raw.githubusercontent.com/natnatdailydiary/Beyond-Time-and-Space/main/Game/coin.png",
+
+            // 5. 障礙物「傳送陣」圖片 (放大 2 倍至 150x144 px)
+            portal: "https://raw.githubusercontent.com/natnatdailydiary/Beyond-Time-and-Space/main/Game/enemy.png",
+
+            // 6. 終點女主角 3 個打氣動作圖片 (與古生同大小 156x210 px，每 0.55 秒循環切換)
+            heroine1: "https://raw.githubusercontent.com/natnatdailydiary/Beyond-Time-and-Space/main/Game/girl_wait1.png",     // 女主角打氣動作 1
+            heroine2: "https://raw.githubusercontent.com/natnatdailydiary/Beyond-Time-and-Space/main/Game/girl_wait2.png",     // 女主角打氣動作 2
+            heroine3: "https://raw.githubusercontent.com/natnatdailydiary/Beyond-Time-and-Space/main/Game/girl_wait3.png",     // 女主角打氣動作 3
+
+            // 7. 三種全螢幕結局圖片 (圖片內已含文字，系統不另加任何文字)
+            endingSuccess: "https://raw.githubusercontent.com/natnatdailydiary/Beyond-Time-and-Space/main/Game/NormalEnding.JPG", // 通關結局圖 (20個或以上綬帶結)
+            endingFail: "https://raw.githubusercontent.com/natnatdailydiary/Beyond-Time-and-Space/main/Game/GameOver.JPG",    // 失敗結局圖 (未滿20個 或 生命歸零)
+            endingHidden: "https://raw.githubusercontent.com/natnatdailydiary/Beyond-Time-and-Space/main/Game/SecretEnding.JPG"   // 隱藏結局圖 (30/30全收集 且 0失誤滿血)
+        };
+
+        /**
+         * ============================================================================
+         * 【遊戲核心參數設定區】
+         * ============================================================================
+         */
+        const GAME_CONFIG = {
+            durationSec: 71,            // 遊戲總時長：1分11秒 (71秒)
+            totalRibbons: 30,           // 總綬帶結數量：30個
+            winMinRibbons: 20,          // 通關門檻：20個或以上
+            maxLives: 3,                // 初始生命值：3條命
+            invulnDuration: 1.3,        // 扣命後無敵閃爍保護時間 (秒)
+
+            // 加快整體速度 + 最後 35 秒 (elapsed >= 36s) 加速衝刺
+            baseSpeed: 430,             // 前 36 秒基礎捲軸速度 (px/s)
+            boostStartSec: 36,          // 進入最後 35 秒衝刺的時間點 (71 - 35 = 36秒)
+            maxSprintSpeed: 680,        // 第 71 秒時的最高衝刺速度 (px/s)
+
+            // 放大 2 倍後的最佳舞台尺寸規格
+            playerWidth: 156,
+            playerHeight: 210,
+            heroineWidth: 156,
+            heroineHeight: 210,
+            heroineAnimInterval: 0.55,  // 女主角動作切換間隔 (秒)
+            ribbonSize: 164,
+            portalWidth: 150,
+            portalHeight: 144,
+
+            // 物理跳躍手感參數 (適配高速與 144px 高傳送陣)
+            gravity: 2650,
+            jumpVelocity: -960,
+            doubleJumpVelocity: -860
+        };
+        /** ============================================================================ */
+
+
+        /**
+         * ============================================================================
+         * 1. 圖片安全預載入系統 (載入失敗自動回退內建向量繪圖，絕不報錯)
+         * ============================================================================
+         */
+        const loadedImages = {};
+
+        function cleanUrl(raw) {
+            return String(raw || "").replace(/\$0$/, "").trim();
+        }
+
+        function preloadImages() {
+            const keys = [
+                'bgImage',
+                'playerRun1', 'playerRun2', 'playerJump',
+                'ribbon', 'portal',
+                'heroine1', 'heroine2', 'heroine3',
+                'endingSuccess', 'endingFail', 'endingHidden'
+            ];
+
+            keys.forEach(key => {
+                const url = cleanUrl(ASSETS[key]);
+                if (!url) {
+                    loadedImages[key] = null;
+                    return;
+                }
+                const img = new Image();
+                img.onload = () => {
+                    loadedImages[key] = img;
+                };
+                img.onerror = () => {
+                    console.warn(`[素材回退] 圖片載入失敗 (${key}): ${url}，已切換為內建向量繪圖。`);
+                    loadedImages[key] = null;
+                };
+                img.src = url;
+            });
+        }
+
+        /**
+         * ============================================================================
+         * 2. 零延遲背景音樂與音效系統 (預載音檔 + Web Audio 鋼琴八音盒備用旋律防呆)
+         * ============================================================================
+         */
+        const bgmPlayer = document.getElementById('bgm-player');
+        let isMuted = false;
+        let audioCtx = null;
+        let fallbackBgmTimer = null;
+        let fallbackNoteIdx = 0;
+
+        // 頁面開啟時即預先載入背景音樂
+        function initBgmPreload() {
+            const url = cleanUrl(ASSETS.bgmUrl);
+            if (url) {
+                bgmPlayer.src = url;
+                bgmPlayer.preload = 'auto';
+                try {
+                    bgmPlayer.load();
+                } catch (e) {}
+            }
+        }
+
+        function initAudioContext() {
+            try {
+                if (!audioCtx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) audioCtx = new AudioContext();
+                }
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume().catch(() => {});
+                }
+            } catch (e) {}
+        }
+
+        function playSfx(type) {
+            if (isMuted) return;
+            try {
+                initAudioContext();
+                if (!audioCtx) return;
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                if (type === 'jump') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(250, now);
+                    osc.frequency.exponentialRampToValueAtTime(590, now + 0.16);
+                    gain.gain.setValueAtTime(0.14, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.16);
+                } else if (type === 'doubleJump') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(380, now);
+                    osc.frequency.exponentialRampToValueAtTime(780, now + 0.17);
+                    gain.gain.setValueAtTime(0.14, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.17);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.17);
+                } else if (type === 'coin') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(880, now);
+                    osc.frequency.setValueAtTime(1318.5, now + 0.06);
+                    gain.gain.setValueAtTime(0.16, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.24);
+                } else if (type === 'hit') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(185, now);
+                    osc.frequency.exponentialRampToValueAtTime(55, now + 0.3);
+                    gain.gain.setValueAtTime(0.18, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                }
+            } catch (e) {}
+        }
+
+        // 備用浪漫鋼琴八音盒背景音樂（若外部音樂連結留空或載入失敗時自動啟動）
+        function startFallbackMusicBox() {
+            stopFallbackMusicBox();
+            const melody = [
+                523.25, 659.25, 783.99, 987.77, 1046.50, 987.77, 783.99, 659.25,
+                440.00, 523.25, 659.25, 783.99, 880.00, 783.99, 659.25, 523.25,
+                349.23, 440.00, 523.25, 659.25, 698.46, 659.25, 523.25, 440.00,
+                392.00, 493.88, 587.33, 783.99, 880.00, 783.99, 587.33, 493.88
+            ];
+            fallbackNoteIdx = 0;
+
+            fallbackBgmTimer = setInterval(() => {
+                if (gameState !== 'PLAYING' || isMuted) return;
+                try {
+                    initAudioContext();
+                    if (!audioCtx) return;
+                    const now = audioCtx.currentTime;
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    const freq = melody[fallbackNoteIdx % melody.length];
+                    fallbackNoteIdx++;
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now);
+                    gain.gain.setValueAtTime(0.06, now);
+                    gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.42);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.42);
+                } catch (e) {}
+            }, 330);
+        }
+
+        function stopFallbackMusicBox() {
+            if (fallbackBgmTimer) {
+                clearInterval(fallbackBgmTimer);
+                fallbackBgmTimer = null;
+            }
+        }
+
+        // 點擊「開始遊戲」瞬間同步呼叫，確保零延遲啟動音樂
+        function startBgmImmediate() {
+            stopFallbackMusicBox();
+            initAudioContext();
+            const url = cleanUrl(ASSETS.bgmUrl);
+            if (!url) {
+                startFallbackMusicBox();
+                return;
+            }
+            try {
+                if (!bgmPlayer.src || !bgmPlayer.src.includes(url)) {
+                    bgmPlayer.src = url;
+                }
+                bgmPlayer.currentTime = 0;
+                bgmPlayer.muted = isMuted;
+                bgmPlayer.volume = 0.85;
+                const playPromise = bgmPlayer.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {
+                        startFallbackMusicBox();
+                    });
+                }
+            } catch (err) {
+                startFallbackMusicBox();
+            }
+        }
+
+        function stopBgmSafe() {
+            stopFallbackMusicBox();
+            try {
+                bgmPlayer.pause();
+                bgmPlayer.currentTime = 0;
+            } catch (e) {}
+        }
+
+        /**
+         * ============================================================================
+         * 3. 精準時間軸與分段速度積分數學模型 (確保 71.0 秒準時抵達終點女主角面前)
+         * ============================================================================
+         */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const WIDTH = 960;
+        const HEIGHT = 540;
+        canvas.width = WIDTH;
+        canvas.height = HEIGHT;
+
+        const GROUND_Y = 472;            // 地面 Y 座標
+        const PLAYER_SCREEN_X = 120;     // 玩家固定於畫面左側 X 座標
+
+        // 計算時間 t (0 ~ 71秒) 對應的累積世界位移距離 X(t)
+        // 0 ~ 36秒：等速 baseSpeed (430 px/s)
+        // 36 ~ 71秒 (最後35秒)：由 430 px/s 線性加速衝刺至 680 px/s
+        function getWorldDistanceAtTime(t) {
+            const clampedT = Math.max(0, Math.min(GAME_CONFIG.durationSec, t));
+            const tBoost = GAME_CONFIG.boostStartSec;
+            const v0 = GAME_CONFIG.baseSpeed;
+            const v1 = GAME_CONFIG.maxSprintSpeed;
+            const totalBoostDuration = GAME_CONFIG.durationSec - tBoost;
+
+            if (clampedT <= tBoost) {
+                return v0 * clampedT;
+            } else {
+                const dt = clampedT - tBoost;
+                const accel = (v1 - v0) / totalBoostDuration;
+                return (v0 * tBoost) + (v0 * dt) + (0.5 * accel * dt * dt);
+            }
+        }
+
+        // 計算時間 t 對應的瞬時速度 (用於跑步動畫頻率)
+        function getCurrentSpeedAtTime(t) {
+            const clampedT = Math.max(0, Math.min(GAME_CONFIG.durationSec, t));
+            const tBoost = GAME_CONFIG.boostStartSec;
+            if (clampedT <= tBoost) return GAME_CONFIG.baseSpeed;
+            const ratio = (clampedT - tBoost) / (GAME_CONFIG.durationSec - tBoost);
+            return GAME_CONFIG.baseSpeed + (GAME_CONFIG.maxSprintSpeed - GAME_CONFIG.baseSpeed) * ratio;
+        }
+
+        // 71秒結束時的總位移距離
+        const TOTAL_TRACK_DISTANCE = getWorldDistanceAtTime(GAME_CONFIG.durationSec);
+
+        // 遊戲狀態與動態實體
+        let gameState = 'INTRO';         // 'INTRO' | 'PLAYING' | 'ENDING'
+        let startTimeMs = 0;
+        let lastFrameMs = 0;
+        let elapsedSec = 0;
+        let loopStarted = false;
+
+        let lives = GAME_CONFIG.maxLives;
+        let collectedCoins = 0;
+        let coinsList = [];
+        let portalsList = [];
+        let floatingTexts = [];
+        let sparkles = [];
+
+        // 玩家（古生）：寬 156px x 高 210px，三動作尺寸完全一致並貼齊地面
+        const player = {
+            x: PLAYER_SCREEN_X,
+            y: GROUND_Y - GAME_CONFIG.playerHeight,
+            width: GAME_CONFIG.playerWidth,
+            height: GAME_CONFIG.playerHeight,
+            vy: 0,
+            onGround: true,
+            jumpCount: 0,
+            maxJumps: 2,
+            runTimer: 0,
+            invulnTimer: 0
+        };
+
+        // 終點女主角：寬 156px x 高 210px (與古生完全同大小)，於第 71.0 秒剛好在玩家正前方相會
+        const heroine = {
+            worldX: PLAYER_SCREEN_X + TOTAL_TRACK_DISTANCE + GAME_CONFIG.playerWidth - 16,
+            y: GROUND_Y - GAME_CONFIG.heroineHeight,
+            width: GAME_CONFIG.heroineWidth,
+            height: GAME_CONFIG.heroineHeight,
+            animTimer: 0
+        };
+
+        /**
+         * ============================================================================
+         * 4. 關卡配置：最後 35 秒密集傳送陣障礙 + 30 個絕不重疊的綬帶結
+         * ============================================================================
+         */
+        function generateLevelEntities() {
+            coinsList = [];
+            portalsList = [];
+            floatingTexts = [];
+            sparkles = [];
+
+            // 【步驟 A】生成傳送陣障礙：
+            // 1) 前 36 秒 (3.2s ~ 34.8s)：配置 11 組單個傳送陣，暖身建立節奏
+            const earlyCount = 11;
+            const earlyStart = 3.2;
+            const earlyEnd = 34.8;
+            const earlyStep = (earlyEnd - earlyStart) / (earlyCount - 1);
+
+            for (let i = 0; i < earlyCount; i++) {
+                const pt = earlyStart + i * earlyStep;
+                const wx = PLAYER_SCREEN_X + getWorldDistanceAtTime(pt);
+                portalsList.push({
+                    worldX: wx,
+                    y: GROUND_Y - GAME_CONFIG.portalHeight,
+                    width: GAME_CONFIG.portalWidth,
+                    height: GAME_CONFIG.portalHeight,
+                    hit: false,
+                    spinAngle: i * 0.7
+                });
+            }
+
+            // 2) 最後 35 秒衝刺段 (36.5s ~ 67.2s)：大幅加密配置 19 組障礙（含多組雙連傳送陣，共約 25 個傳送陣）
+            const lateCount = 19;
+            const lateStart = 36.5;
+            const lateEnd = 67.2;
+            const lateStep = (lateEnd - lateStart) / (lateCount - 1);
+
+            for (let j = 0; j < lateCount; j++) {
+                const pt = lateStart + j * lateStep;
+                const wx = PLAYER_SCREEN_X + getWorldDistanceAtTime(pt);
+
+                portalsList.push({
+                    worldX: wx,
+                    y: GROUND_Y - GAME_CONFIG.portalHeight,
+                    width: GAME_CONFIG.portalWidth,
+                    height: GAME_CONFIG.portalHeight,
+                    hit: false,
+                    spinAngle: j * 0.9
+                });
+
+                // 每隔 3 組加入雙連緊貼傳送陣，考驗二段跳跨越（總寬約 285px，高速下二段跳可順暢飛越）
+                if (j % 3 === 1 && pt < 65.5) {
+                    portalsList.push({
+                        worldX: wx + GAME_CONFIG.portalWidth - 15,
+                        y: GROUND_Y - GAME_CONFIG.portalHeight,
+                        width: GAME_CONFIG.portalWidth,
+                        height: GAME_CONFIG.portalHeight,
+                        hit: false,
+                        spinAngle: j * 0.9 + Math.PI / 2
+                    });
+                }
+            }
+
+            // 【步驟 B】平均生成 30 個綬帶結 (164x164 px)，並執行「嚴格防重疊安全空間檢測」
+            const firstCoinTime = 2.0;
+            const lastCoinTime = 67.8;
+            const coinStepTime = (lastCoinTime - firstCoinTime) / (GAME_CONFIG.totalRibbons - 1);
+
+            // 基礎高度循環：貼地、低空跳躍、中高空跳躍
+            const baseHeights = [
+                GROUND_Y - GAME_CONFIG.ribbonSize - 10,
+                GROUND_Y - GAME_CONFIG.ribbonSize - 115,
+                GROUND_Y - GAME_CONFIG.ribbonSize - 195
+            ];
+
+            const portalTopY = GROUND_Y - GAME_CONFIG.portalHeight; // 傳送陣頂端 Y 座標 (472 - 144 = 328)
+            const safeClearanceY = portalTopY - GAME_CONFIG.ribbonSize - 26; // 確保綬帶結底端在傳送陣頂端上方至少 26px (328 - 164 - 26 = 138)
+
+            for (let i = 0; i < GAME_CONFIG.totalRibbons; i++) {
+                const t = firstCoinTime + i * coinStepTime;
+                const worldX = PLAYER_SCREEN_X + getWorldDistanceAtTime(t);
+                let targetY = baseHeights[i % baseHeights.length];
+
+                // 檢查此綬帶結的水平範圍 [worldX, worldX + 164] 是否與任何傳送陣接近或重疊
+                // 加入 45px 水平安全緩衝區，只要靠近傳送陣，就自動抬高到傳送陣正上方的高空跳躍弧線區！
+                let overlapsAnyPortalX = false;
+                for (let p of portalsList) {
+                    const bufferX = 45;
+                    const overlapX = (worldX + GAME_CONFIG.ribbonSize + bufferX > p.worldX) &&
+                                     (worldX - bufferX < p.worldX + p.width);
+                    if (overlapX) {
+                        overlapsAnyPortalX = true;
+                        break;
+                    }
+                }
+
+                if (overlapsAnyPortalX) {
+                    // 抬高至傳送陣正上方安全高度（既完全不重疊，玩家跳過傳送陣時也能剛好吃到！）
+                    targetY = Math.max(58, safeClearanceY);
+                }
+
+                coinsList.push({
+                    id: i,
+                    worldX: worldX,
+                    y: targetY,
+                    width: GAME_CONFIG.ribbonSize,
+                    height: GAME_CONFIG.ribbonSize,
+                    collected: false,
+                    bobOffset: i * 0.65
+                });
+            }
+        }
+
+        /**
+         * ============================================================================
+         * 5. 遊戲流程控制 (零延遲啟動音樂與主迴圈)
+         * ============================================================================
+         */
+        function startGame(e) {
+            if (e && typeof e.preventDefault === 'function') {
+                e.preventDefault();
+            }
+
+            // 1. 立即觸發背景音樂播放（與用戶點擊事件同步，保證零延遲）
+            startBgmImmediate();
+
+            // 2. 重置玩家與關卡數值
+            lives = GAME_CONFIG.maxLives;
+            collectedCoins = 0;
+            elapsedSec = 0;
+
+            player.y = GROUND_Y - player.height;
+            player.vy = 0;
+            player.onGround = true;
+            player.jumpCount = 0;
+            player.runTimer = 0;
+            player.invulnTimer = 0;
+            heroine.animTimer = 0;
+
+            generateLevelEntities();
+            updateHudUI();
+
+            document.getElementById('intro-modal').classList.add('hidden');
+            document.getElementById('ending-modal').classList.add('hidden');
+
+            gameState = 'PLAYING';
+            startTimeMs = performance.now();
+            lastFrameMs = startTimeMs;
+
+            if (!loopStarted) {
+                loopStarted = true;
+                requestAnimationFrame(mainLoop);
+            }
+        }
+
+        function triggerJump() {
+            if (gameState !== 'PLAYING') return;
+            if (player.onGround) {
+                player.vy = GAME_CONFIG.jumpVelocity;
+                player.onGround = false;
+                player.jumpCount = 1;
+                playSfx('jump');
+            } else if (player.jumpCount < player.maxJumps) {
+                player.vy = GAME_CONFIG.doubleJumpVelocity;
+                player.jumpCount++;
+                playSfx('doubleJump');
+                spawnSparkles(player.x + player.width / 2, player.y + player.height, '#80deea', 10);
+            }
+        }
+
+        function addFloatingText(x, y, text, color = '#ffd54f') {
+            floatingTexts.push({ x, y, text, color, life: 0.8 });
+        }
+
+        function spawnSparkles(x, y, color, count = 8) {
+            for (let i = 0; i < count; i++) {
+                const angle = (Math.PI * 2 * i) / count;
+                const speed = 100 + Math.random() * 130;
+                sparkles.push({
+                    x, y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 40,
+                    color,
+                    size: 5 + Math.random() * 4,
+                    life: 0.45
+                });
+            }
+        }
+
+        /**
+         * ============================================================================
+         * 6. 結局判定與全螢幕純圖片展示 (無額外文字，僅展示圖片 + 再玩一次按鈕)
+         * ============================================================================
+         */
+        function finishGame(reason) {
+            if (gameState === 'ENDING') return;
+            gameState = 'ENDING';
+            stopBgmSafe();
+
+            const endingModal = document.getElementById('ending-modal');
+            const bgContainer = document.getElementById('ending-fullscreen-bg');
+            bgContainer.innerHTML = '';
+
+            // 結局判定邏輯：
+            // 1. 隱藏結局：71秒完賽 + 全收集 30/30 個綬帶結 + 3條生命完整保留 (0失誤)
+            // 2. 通關結局：71秒完賽 + 收集 20 個或以上綬帶結
+            // 3. 失敗結局：生命歸零 或 收集少於 20 個綬帶結
+            let endingType = 'FAIL';
+            if (reason === 'TIME_UP') {
+                if (collectedCoins >= GAME_CONFIG.totalRibbons && lives === GAME_CONFIG.maxLives) {
+                    endingType = 'HIDDEN';
+                } else if (collectedCoins >= GAME_CONFIG.winMinRibbons) {
+                    endingType = 'SUCCESS';
+                } else {
+                    endingType = 'FAIL';
+                }
+            }
+
+            let targetImg = null;
+            let rawUrl = "";
+            if (endingType === 'HIDDEN') {
+                targetImg = loadedImages.endingHidden;
+                rawUrl = cleanUrl(ASSETS.endingHidden);
+            } else if (endingType === 'SUCCESS') {
+                targetImg = loadedImages.endingSuccess;
+                rawUrl = cleanUrl(ASSETS.endingSuccess);
+            } else {
+                targetImg = loadedImages.endingFail;
+                rawUrl = cleanUrl(ASSETS.endingFail);
+            }
+
+            if (targetImg) {
+                const img = document.createElement('img');
+                img.src = targetImg.src;
+                img.alt = '結局畫面';
+                bgContainer.appendChild(img);
+            } else if (rawUrl) {
+                const img = document.createElement('img');
+                img.src = rawUrl;
+                img.alt = '結局畫面';
+                img.onerror = () => {
+                    bgContainer.innerHTML = renderFallbackVisualOnly(endingType);
+                };
+                bgContainer.appendChild(img);
+            } else {
+                bgContainer.innerHTML = renderFallbackVisualOnly(endingType);
+            }
+
+            endingModal.classList.remove('hidden');
+        }
+
+        function renderFallbackVisualOnly(type) {
+            const palettes = {
+                HIDDEN: 'radial-gradient(circle at center, #ffd54f 0%, #ff4081 45%, #311b92 100%)',
+                SUCCESS: 'radial-gradient(circle at center, #80cbc4 0%, #3949ab 55%, #1a237e 100%)',
+                FAIL: 'radial-gradient(circle at center, #880e4f 0%, #311b92 55%, #0d071a 100%)'
+            };
+            const icons = {
+                HIDDEN: '🏆💖🎀✨',
+                SUCCESS: '🎉🎀🎶',
+                FAIL: '🌀💔⏳'
+            };
+            return `
+                <div style="width:100%;height:100%;background:${palettes[type]};display:flex;align-items:center;justify-content:center;">
+                    <div style="font-size:clamp(48px, 8vw, 84px);letter-spacing:8px;filter:drop-shadow(0 6px 18px rgba(0,0,0,0.6));">${icons[type]}</div>
+                </div>
+            `;
+        }
+
+        /**
+         * ============================================================================
+         * 7. 物理更新與碰撞檢測 (Update Loop)
+         * ============================================================================
+         */
+        function update(dt) {
+            if (gameState !== 'PLAYING') return;
+
+            const nowMs = performance.now();
+            elapsedSec = Math.min(GAME_CONFIG.durationSec, (nowMs - startTimeMs) / 1000);
+            const currentCameraX = getWorldDistanceAtTime(elapsedSec);
+            const currentSpeed = getCurrentSpeedAtTime(elapsedSec);
+
+            // 1. 玩家重力與垂直位移
+            player.vy += GAME_CONFIG.gravity * dt;
+            player.y += player.vy * dt;
+            player.onGround = false;
+
+            // 2. 主舞台地面著陸檢測 (確保 156x210 的古生雙腳精準貼齊 GROUND_Y)
+            if (player.y >= GROUND_Y - player.height) {
+                player.y = GROUND_Y - player.height;
+                player.vy = 0;
+                player.onGround = true;
+                player.jumpCount = 0;
+            }
+
+            // 跑步動作交替計時 (隨加速衝刺加快步伐頻率)
+            if (player.onGround) {
+                const speedFactor = currentSpeed / GAME_CONFIG.baseSpeed;
+                player.runTimer += dt * 8.5 * speedFactor;
+            }
+
+            // 受傷無敵閃爍倒數
+            if (player.invulnTimer > 0) {
+                player.invulnTimer = Math.max(0, player.invulnTimer - dt);
+            }
+
+            // 終點女主角打氣動作計時：每 0.55 秒慢速循環切換 3 個動作
+            heroine.animTimer += dt / GAME_CONFIG.heroineAnimInterval;
+
+            // 玩家公平碰撞箱 (適度內縮讓操作手感流暢不冤枉)
+            const pBox = {
+                left: player.x + 32,
+                right: player.x + player.width - 32,
+                top: player.y + 22,
+                bottom: player.y + player.height - 12
+            };
+
+            // 3. 「綬帶結」收集檢測 (164x164 px)
+            for (let coin of coinsList) {
+                if (coin.collected) continue;
+                const screenX = coin.worldX - currentCameraX;
+                if (screenX + coin.width < -30 || screenX > WIDTH + 30) continue;
+
+                const bobY = coin.y + Math.sin(elapsedSec * 5 + coin.bobOffset) * 5;
+                const cBox = {
+                    left: screenX + 16,
+                    right: screenX + coin.width - 16,
+                    top: bobY + 16,
+                    bottom: bobY + coin.height - 16
+                };
+
+                if (pBox.right > cBox.left && pBox.left < cBox.right &&
+                    pBox.bottom > cBox.top && pBox.top < cBox.bottom) {
+                    coin.collected = true;
+                    collectedCoins++;
+                    playSfx('coin');
+                    addFloatingText(screenX + coin.width / 2 - 26, bobY + 20, '+1 🎀', '#ffd54f');
+                    spawnSparkles(screenX + coin.width / 2, bobY + coin.height / 2, '#ffd54f', 10);
+                }
+            }
+
+            // 4. 「傳送陣」障礙物碰撞檢測 (150x144 px，內縮公平碰撞箱確保古生可輕鬆跳過)
+            for (let portal of portalsList) {
+                portal.spinAngle += dt * 4.5;
+                if (portal.hit) continue;
+
+                const screenX = portal.worldX - currentCameraX;
+                if (screenX + portal.width < -30 || screenX > WIDTH + 30) continue;
+
+                const eBox = {
+                    left: screenX + 36,
+                    right: screenX + portal.width - 36,
+                    top: portal.y + 34,
+                    bottom: portal.y + portal.height - 8
+                };
+
+                if (pBox.right > eBox.left && pBox.left < eBox.right &&
+                    pBox.bottom > eBox.top && pBox.top < eBox.bottom) {
+                    portal.hit = true;
+                    if (player.invulnTimer <= 0) {
+                        lives--;
+                        player.invulnTimer = GAME_CONFIG.invulnDuration;
+                        playSfx('hit');
+                        addFloatingText(player.x + 20, player.y + 10, '中咗傳送陣！-1 ❤️', '#ff5252');
+                        spawnSparkles(player.x + player.width / 2, player.y + player.height / 2, '#e040fb', 16);
+
+                        if (lives <= 0) {
+                            updateHudUI();
+                            finishGame('NO_LIVES');
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // 5. 更新飄字與粒子特效
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                floatingTexts[i].y -= 55 * dt;
+                floatingTexts[i].life -= dt;
+                if (floatingTexts[i].life <= 0) floatingTexts.splice(i, 1);
+            }
+
+            for (let i = sparkles.length - 1; i >= 0; i--) {
+                const s = sparkles[i];
+                s.x += s.vx * dt;
+                s.y += s.vy * dt;
+                s.vy += 350 * dt;
+                s.life -= dt;
+                if (s.life <= 0) sparkles.splice(i, 1);
+            }
+
+            updateHudUI();
+
+            // 6. 71.0 秒音樂結束，古生剛好跑到女主角面前結束遊戲
+            if (elapsedSec >= GAME_CONFIG.durationSec) {
+                finishGame('TIME_UP');
+            }
+        }
+
+        function updateHudUI() {
+            let heartsStr = '';
+            for (let i = 0; i < GAME_CONFIG.maxLives; i++) {
+                heartsStr += (i < lives) ? '❤️' : '🖤';
+            }
+            document.getElementById('hud-lives').textContent = heartsStr;
+            document.getElementById('hud-coins').textContent = `${collectedCoins} / ${GAME_CONFIG.totalRibbons}`;
+
+            const remaining = Math.max(0, Math.ceil(GAME_CONFIG.durationSec - elapsedSec));
+            const mins = String(Math.floor(remaining / 60)).padStart(2, '0');
+            const secs = String(remaining % 60).padStart(2, '0');
+            document.getElementById('hud-time').textContent = `${mins}:${secs}`;
+
+            // 進入最後 35 秒加速階段 (elapsedSec >= 36s) 時，直接在「剩餘時間」正上方顯示「🔥 衝刺加速中！」
+            const timerCard = document.getElementById('timer-card');
+            const sprintLabel = document.getElementById('sprint-label');
+            if (gameState === 'PLAYING' && elapsedSec >= GAME_CONFIG.boostStartSec) {
+                sprintLabel.classList.remove('hidden');
+                timerCard.classList.add('sprinting');
+            } else {
+                sprintLabel.classList.add('hidden');
+                timerCard.classList.remove('sprinting');
+            }
+        }
+
+        /**
+         * ============================================================================
+         * 8. 畫面渲染引擎 (Render Loop - 純淨舞台、無瑪莉歐旗桿與終點線)
+         * ============================================================================
+         */
+        function render() {
+            const currentCameraX = getWorldDistanceAtTime(elapsedSec);
+
+            // 1. 繪製捲動背景
+            drawScrollingBackground(currentCameraX);
+
+            // 2. 繪製舞台地面跑道
+            drawStageGround(currentCameraX);
+
+            // 3. 繪製「綬帶結」 (164x164 px)
+            for (let coin of coinsList) {
+                if (coin.collected) continue;
+                const screenX = coin.worldX - currentCameraX;
+                if (screenX + coin.width < -40 || screenX > WIDTH + 40) continue;
+
+                const bobY = coin.y + Math.sin(elapsedSec * 5 + coin.bobOffset) * 5;
+                drawRibbonSprite(screenX, bobY, coin.width, coin.height);
+            }
+
+            // 4. 繪製「傳送陣」障礙物 (150x144 px)
+            for (let portal of portalsList) {
+                const screenX = portal.worldX - currentCameraX;
+                if (screenX + portal.width < -40 || screenX > WIDTH + 40) continue;
+
+                drawPortalSprite(screenX, portal.y, portal.width, portal.height, portal.spinAngle, portal.hit);
+            }
+
+            // 5. 繪製終點女主角 (僅在接近終點時隨畫面捲入出現，與古生同大小 156x210 px)
+            const heroineScreenX = heroine.worldX - currentCameraX;
+            if (heroineScreenX < WIDTH + 40) {
+                drawHeroineSprite(heroineScreenX, heroine.y, heroine.width, heroine.height);
+            }
+
+            // 6. 繪製玩家（古生） (156x210 px)
+            drawPlayerSprite();
+
+            // 7. 繪製粒子與飄字特效
+            for (let s of sparkles) {
+                ctx.fillStyle = s.color;
+                ctx.globalAlpha = Math.max(0, s.life * 2.2);
+                ctx.fillRect(s.x, s.y, s.size, s.size);
+            }
+            ctx.globalAlpha = 1;
+
+            for (let ft of floatingTexts) {
+                ctx.save();
+                ctx.font = '900 20px "Noto Sans TC", sans-serif';
+                ctx.fillStyle = ft.color;
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 4;
+                ctx.strokeText(ft.text, ft.x, ft.y);
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+            }
+        }
+
+        function drawScrollingBackground(cameraX) {
+            const bgImg = loadedImages.bgImage;
+            if (bgImg && bgImg.width > 0 && bgImg.height > 0) {
+                const scale = HEIGHT / bgImg.height;
+                const drawW = bgImg.width * scale;
+                const offsetX = -(cameraX * 0.5) % drawW;
+
+                for (let x = offsetX; x < WIDTH; x += drawW) {
+                    ctx.drawImage(bgImg, x, 0, drawW, HEIGHT);
+                }
+            } else {
+                const grad = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+                grad.addColorStop(0, '#120826');
+                grad.addColorStop(0.55, '#2b1354');
+                grad.addColorStop(1, '#4a1c6b');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+                ctx.save();
+                ctx.globalAlpha = 0.12;
+                ctx.fillStyle = '#ffd54f';
+                for (let i = 0; i < 4; i++) {
+                    const beamX = ((i * 280 - cameraX * 0.22) % (WIDTH + 280) + (WIDTH + 280)) % (WIDTH + 280) - 100;
+                    ctx.beginPath();
+                    ctx.moveTo(beamX, 0);
+                    ctx.lineTo(beamX - 85, GROUND_Y);
+                    ctx.lineTo(beamX + 85, GROUND_Y);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        function drawStageGround(cameraX) {
+            const floorGrad = ctx.createLinearGradient(0, GROUND_Y, 0, HEIGHT);
+            floorGrad.addColorStop(0, '#3a1c5e');
+            floorGrad.addColorStop(1, '#180a2b');
+            ctx.fillStyle = floorGrad;
+            ctx.fillRect(0, GROUND_Y, WIDTH, HEIGHT - GROUND_Y);
+
+            ctx.fillStyle = '#ffd54f';
+            ctx.fillRect(0, GROUND_Y, WIDTH, 4);
+
+            ctx.strokeStyle = 'rgba(255, 213, 79, 0.22)';
+            ctx.lineWidth = 2;
+            const tileW = 60;
+            const startX = -(cameraX % tileW);
+            for (let x = startX; x < WIDTH; x += tileW) {
+                ctx.beginPath();
+                ctx.moveTo(x, GROUND_Y + 4);
+                ctx.lineTo(x - 18, HEIGHT);
+                ctx.stroke();
+            }
+        }
+
+        // 繪製玩家（古生）：強制鎖定 156x210 px 尺寸，貼齊地面
+        function drawPlayerSprite() {
+            if (player.invulnTimer > 0 && Math.floor(player.invulnTimer * 14) % 2 === 0) {
+                return;
+            }
+
+            let spriteImg = null;
+            const runFrameIndex = Math.floor(player.runTimer) % 2;
+
+            if (!player.onGround) {
+                spriteImg = loadedImages.playerJump;
+            } else {
+                spriteImg = (runFrameIndex === 0) ? loadedImages.playerRun1 : loadedImages.playerRun2;
+            }
+
+            if (spriteImg && spriteImg.width > 0) {
+                ctx.drawImage(spriteImg, player.x, player.y, player.width, player.height);
+            } else {
+                // 內建向量備用繪圖 (156x210 px)
+                const x = player.x;
+                const y = player.y;
+                ctx.save();
+                ctx.fillStyle = '#ffcc99';
+                ctx.beginPath();
+                ctx.arc(x + 78, y + 48, 32, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#1c1c28';
+                ctx.beginPath();
+                ctx.arc(x + 78, y + 40, 32, Math.PI, 0);
+                ctx.fill();
+                ctx.fillStyle = '#1c1c28';
+                ctx.fillRect(x + 42, y + 80, 72, 80);
+                ctx.fillStyle = '#ffd54f';
+                ctx.fillRect(x + 72, y + 86, 12, 10);
+                ctx.fillStyle = '#111118';
+                if (!player.onGround) {
+                    ctx.fillRect(x + 38, y + 152, 26, 42);
+                    ctx.fillRect(x + 88, y + 136, 30, 32);
+                } else if (runFrameIndex === 0) {
+                    ctx.fillRect(x + 30, y + 160, 28, 50);
+                    ctx.fillRect(x + 96, y + 152, 28, 50);
+                } else {
+                    ctx.fillRect(x + 56, y + 160, 28, 46);
+                    ctx.fillRect(x + 78, y + 160, 28, 50);
+                }
+                ctx.restore();
+            }
+        }
+
+        // 繪製「綬帶結」 (164x164 px)
+        function drawRibbonSprite(x, y, w, h) {
+            if (loadedImages.ribbon && loadedImages.ribbon.width > 0) {
+                ctx.drawImage(loadedImages.ribbon, x, y, w, h);
+            } else {
+                const cx = x + w / 2;
+                const cy = y + h / 2;
+                ctx.save();
+                ctx.shadowColor = '#ffd54f';
+                ctx.shadowBlur = 16;
+                ctx.fillStyle = '#ff4081';
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx - 52, cy - 36);
+                ctx.lineTo(cx - 52, cy + 36);
+                ctx.closePath();
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + 52, cy - 36);
+                ctx.lineTo(cx + 52, cy + 36);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = '#ffd54f';
+                ctx.beginPath();
+                ctx.arc(cx, cy, 16, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // 繪製「傳送陣」障礙物 (150x144 px)
+        function drawPortalSprite(x, y, w, h, angle, isHit) {
+            ctx.save();
+            if (isHit) ctx.globalAlpha = 0.35;
+
+            if (loadedImages.portal && loadedImages.portal.width > 0) {
+                ctx.drawImage(loadedImages.portal, x, y, w, h);
+            } else {
+                const cx = x + w / 2;
+                const cy = y + h / 2;
+                ctx.translate(cx, cy);
+                ctx.rotate(angle);
+                const grad = ctx.createRadialGradient(0, 0, 10, 0, 0, w / 2);
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.45, '#e040fb');
+                grad.addColorStop(1, '#4a148c');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(0, 0, w / 2 - 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffd54f';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(-32, -32, 64, 64);
+            }
+            ctx.restore();
+        }
+
+        // 繪製終點女主角：與古生同大小 (156x210 px)，每 0.55 秒慢速循環切換 3 個打氣動作
+        function drawHeroineSprite(x, y, w, h) {
+            const frameIdx = Math.floor(heroine.animTimer) % 3;
+            const heroineFrames = [
+                loadedImages.heroine1,
+                loadedImages.heroine2,
+                loadedImages.heroine3
+            ];
+            const currentImg = heroineFrames[frameIdx];
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(255, 213, 79, 0.22)';
+            ctx.beginPath();
+            ctx.ellipse(x + w / 2, GROUND_Y, 86, 18, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (currentImg && currentImg.width > 0) {
+                ctx.drawImage(currentImg, x, y, w, h);
+            } else {
+                const bounceY = (frameIdx === 1) ? -8 : 0;
+                const drawY = y + bounceY;
+                ctx.fillStyle = '#3e2723';
+                ctx.beginPath();
+                ctx.arc(x + w / 2, drawY + 50, 36, 0, Math.PI * 2);
+                ctx.fillRect(x + w / 2 - 36, drawY + 50, 72, 80);
+                ctx.fill();
+                ctx.fillStyle = '#ffe0bd';
+                ctx.beginPath();
+                ctx.arc(x + w / 2, drawY + 48, 28, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ff4081';
+                ctx.beginPath();
+                ctx.moveTo(x + w / 2 - 28, drawY + 80);
+                ctx.lineTo(x + w / 2 + 28, drawY + 80);
+                ctx.lineTo(x + w / 2 + 46, drawY + h - 8);
+                ctx.lineTo(x + w / 2 - 46, drawY + h - 8);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = '#ffe0bd';
+                ctx.lineWidth = 8;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                if (frameIdx === 0) {
+                    ctx.moveTo(x + w / 2 - 28, drawY + 88);
+                    ctx.lineTo(x + w / 2 - 52, drawY + 48);
+                    ctx.moveTo(x + w / 2 + 28, drawY + 88);
+                    ctx.lineTo(x + w / 2 + 52, drawY + 68);
+                } else if (frameIdx === 1) {
+                    ctx.moveTo(x + w / 2 - 28, drawY + 88);
+                    ctx.lineTo(x + w / 2 - 52, drawY + 36);
+                    ctx.moveTo(x + w / 2 + 28, drawY + 88);
+                    ctx.lineTo(x + w / 2 + 52, drawY + 36);
+                } else {
+                    ctx.moveTo(x + w / 2 - 28, drawY + 88);
+                    ctx.lineTo(x + w / 2 - 52, drawY + 68);
+                    ctx.moveTo(x + w / 2 + 28, drawY + 88);
+                    ctx.lineTo(x + w / 2 + 52, drawY + 48);
+                }
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        /**
+         * ============================================================================
+         * 9. 主動畫迴圈與事件綁定
+         * ============================================================================
+         */
+        function mainLoop(nowMs) {
+            try {
+                const dt = Math.min(0.05, Math.max(0, (nowMs - lastFrameMs) / 1000));
+                lastFrameMs = nowMs;
+
+                update(dt);
+                render();
+            } catch (err) {
+                console.error("遊戲主迴圈發生非預期錯誤:", err);
+            }
+            requestAnimationFrame(mainLoop);
+        }
+
+        // 鍵盤跳躍控制 (空白鍵、方向鍵上、W 鍵)
+        window.addEventListener('keydown', (e) => {
+            if (['Space', 'ArrowUp', 'KeyW'].includes(e.code)) {
+                if (gameState === 'PLAYING') {
+                    e.preventDefault();
+                    triggerJump();
+                }
+            }
+        });
+
+        // 支援在遊戲進行中，任意點擊/輕觸屏幕任何位置（包括遊戲視窗內外）即可跳躍
+        // 支援在遊戲進行中，任意點擊/輕觸屏幕任何位置（包括手機橫向/直向全螢幕與遊戲視窗內外）即可零延遲跳躍
+        function handleGlobalScreenTap(e) {
+            if (gameState !== 'PLAYING') return;
+            if (e.target.closest('button') || e.target.closest('.modal-overlay:not(.hidden)')) {
+                return;
+            }
+            if (e.cancelable) {
+                e.preventDefault();
+            }
+            triggerJump();
+        }
+
+        window.addEventListener('touchstart', handleGlobalScreenTap, { passive: false });
+        window.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            handleGlobalScreenTap(e);
+        });
+
+        document.getElementById('start-btn').addEventListener('click', startGame);
+        document.getElementById('restart-btn').addEventListener('click', startGame);
+
+        const muteBtn = document.getElementById('mute-btn');
+        muteBtn.addEventListener('click', () => {
+            isMuted = !isMuted;
+            try {
+                bgmPlayer.muted = isMuted;
+            } catch (e) {}
+            muteBtn.textContent = isMuted ? '🔇 關聲音' : '🔊 開聲音';
+        });
+
+        function initApp() {
+            initBgmPreload();
+            preloadImages();
+            generateLevelEntities();
+            updateHudUI();
+            if (!loopStarted) {
+                loopStarted = true;
+                lastFrameMs = performance.now();
+                requestAnimationFrame(mainLoop);
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+    </script>
+</body>
+</html>

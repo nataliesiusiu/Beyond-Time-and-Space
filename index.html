@@ -52,6 +52,71 @@
         /* ============================================================================
            手機直向 (Portrait) 與橫向 (Landscape) 專屬響應式適配 (統一維持 16:9 寬螢幕比例)
            ============================================================================ */
+        @media (max-width: 768px), (orientation: portrait), (orientation: landscape) and (max-height: 520px) {
+            #hud {
+                padding: 4px 8px;
+                gap: 4px;
+                align-items: center;
+                flex-wrap: nowrap;
+            }
+            .hud-left, .hud-right {
+                gap: 4px;
+                flex-wrap: nowrap;
+                align-items: center;
+            }
+            .hud-badge {
+                padding: 2px 7px;
+                font-size: 10px;
+                gap: 3px;
+                border-width: 1px;
+                white-space: nowrap;
+            }
+            .hud-label-text {
+                display: none;
+            }
+            .timer-card {
+                padding: 2px 7px;
+                border-radius: 999px;
+                border-width: 1px;
+                flex-direction: row;
+                gap: 4px;
+                white-space: nowrap;
+            }
+            .timer-row {
+                font-size: 10px;
+                gap: 2px;
+                white-space: nowrap;
+            }
+            #sprint-label {
+                font-size: 9px;
+                margin-bottom: 0;
+                white-space: nowrap;
+            }
+            #mute-btn {
+                padding: 2px 7px;
+                font-size: 10px;
+                border-width: 1px;
+                white-space: nowrap;
+            }
+            #restart-btn {
+                bottom: 8px;
+                left: 50%;
+                right: auto;
+                transform: translateX(-50%);
+                padding: 5px 16px;
+                font-size: 12px;
+                border-width: 1.5px;
+                white-space: nowrap;
+                background: linear-gradient(135deg, rgba(246, 201, 69, 0.92) 0%, rgba(255, 143, 0, 0.92) 100%);
+            }
+            #restart-btn:hover {
+                transform: translateX(-50%) translateY(-1px);
+            }
+            #restart-btn:active {
+                transform: translateX(-50%) translateY(1px);
+            }
+        }
+
         @media (orientation: portrait) {
             body {
                 padding: 8px;
@@ -63,31 +128,6 @@
                 height: auto;
                 max-height: 85dvh;
                 border-radius: 14px;
-            }
-            #hud {
-                padding: 6px 10px;
-                gap: 6px;
-            }
-            .hud-left, .hud-right {
-                gap: 6px;
-            }
-            .hud-badge {
-                padding: 3px 8px;
-                font-size: 11px;
-            }
-            .timer-card {
-                padding: 3px 8px;
-                border-radius: 10px;
-            }
-            .timer-row {
-                font-size: 11px;
-            }
-            #sprint-label {
-                font-size: 10px;
-            }
-            #mute-btn {
-                padding: 3px 8px;
-                font-size: 11px;
             }
             .intro-card {
                 padding: 10px 12px;
@@ -124,19 +164,6 @@
                 aspect-ratio: 16 / 9;
                 border-radius: 12px;
                 border-width: 2px;
-            }
-            #hud {
-                padding: 6px 14px;
-            }
-            .hud-badge, #mute-btn {
-                padding: 4px 10px;
-                font-size: 12px;
-            }
-            .timer-card {
-                padding: 4px 10px;
-            }
-            .timer-row {
-                font-size: 12px;
             }
             .intro-card {
                 padding: 10px 16px;
@@ -400,11 +427,15 @@
 
         #restart-btn {
             position: absolute;
-            bottom: clamp(14px, 3.5vh, 28px);
+            bottom: clamp(10px, 2.4vh, 20px);
             left: 50%;
+            right: auto;
             transform: translateX(-50%);
+            padding: 7px 24px;
+            font-size: clamp(13px, 1.7vw, 17px);
+            white-space: nowrap;
             z-index: 45;
-            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.85), 0 0 18px rgba(246, 201, 69, 0.7);
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.85), 0 0 14px rgba(246, 201, 69, 0.65);
         }
 
         #restart-btn:hover {
@@ -435,7 +466,7 @@
                     <span id="hud-lives">❤️❤️❤️</span>
                 </div>
                 <div class="hud-badge gold-text">
-                    <span>🎀 綬帶結：</span>
+                    <span>🎀<span class="hud-label-text"> 綬帶結：</span></span>
                     <span id="hud-coins">0 / 30</span>
                 </div>
             </div>
@@ -443,9 +474,9 @@
             <div class="hud-right">
                 <!-- 右上角整合式計時器卡片：「🔥 衝刺加速中！」直接顯示在剩餘時間上方 -->
                 <div id="timer-card" class="timer-card">
-                    <div id="sprint-label" class="hidden">🔥 衝刺加速中！</div>
+                    <div id="sprint-label" class="hidden">🔥 衝刺中</div>
                     <div class="timer-row">
-                        <span>⏳ 剩餘時間：</span>
+                        <span>⏳<span class="hud-label-text"> 剩餘時間：</span></span>
                         <span id="hud-time" class="gold-text">01:11</span>
                     </div>
                 </div>
